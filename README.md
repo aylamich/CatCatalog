@@ -2,7 +2,7 @@
 
 Catálogo de raças de gatos feito em React Native + Expo (TypeScript), como Projeto Somativo da disciplina **Desenvolvimento Mobile Híbrido** — *Catálogo Interativo 2.0*.
 
-**Vídeo de apresentação:** _link do YouTube aqui_
+**Vídeo de apresentação:** [Clique aqui para assistir ao vídeo de apresentação](https://youtu.be/SZSy6OgIgR4)
 
 **Integrantes:**
 - Ayla Micheluzzi
