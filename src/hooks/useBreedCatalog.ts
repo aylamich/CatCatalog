@@ -11,7 +11,6 @@ type LoadMode = 'initial' | 'refresh' | 'more';
  */
 export function useBreedCatalog() {
   const [breeds, setBreeds] = useState<Breed[]>([]);
-  const [nextPage, setNextPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -21,8 +20,10 @@ export function useBreedCatalog() {
   // Error of a next page: the list already loaded is kept.
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
 
-  // Current request. A ref (not state) so two quick onEndReached calls never start two requests.
+  // Current request and next page as refs (not state): they change at once, so an onEndReached
+  // that fires before the screen re-renders never starts a second request for the same page.
   const requestRef = useRef<AbortController | null>(null);
+  const nextPageRef = useRef(0);
 
   const loadPage = useCallback(async (page: number, mode: LoadMode) => {
     requestRef.current?.abort();
@@ -38,8 +39,13 @@ export function useBreedCatalog() {
 
     try {
       const result = await fetchBreeds(page, controller.signal);
-      setBreeds((previous) => (page === 0 ? result.breeds : [...previous, ...result.breeds]));
-      setNextPage(page + 1);
+      if (controller.signal.aborted) return; // replaced by a newer request
+      nextPageRef.current = page + 1;
+      setBreeds((previous) => {
+        if (page === 0) return result.breeds;
+        const loadedIds = new Set(previous.map((breed) => breed.id));
+        return [...previous, ...result.breeds.filter((breed) => !loadedIds.has(breed.id))];
+      });
       setHasMore(result.hasMore);
       if (page === 0) setLoadMoreError(null);
     } catch (requestError) {
@@ -65,12 +71,12 @@ export function useBreedCatalog() {
 
   const loadMore = useCallback(() => {
     if (requestRef.current || !hasMore || error || loadMoreError) return;
-    loadPage(nextPage, 'more');
-  }, [hasMore, error, loadMoreError, nextPage, loadPage]);
+    loadPage(nextPageRef.current, 'more');
+  }, [hasMore, error, loadMoreError, loadPage]);
 
   const retryLoadMore = useCallback(() => {
-    if (!requestRef.current) loadPage(nextPage, 'more');
-  }, [nextPage, loadPage]);
+    if (!requestRef.current) loadPage(nextPageRef.current, 'more');
+  }, [loadPage]);
 
   const refresh = useCallback(() => loadPage(0, 'refresh'), [loadPage]);
 
